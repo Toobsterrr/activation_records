@@ -18,7 +18,7 @@ void main() {
 
     int x = 2;
     int y = 3;
-    first(x, y, 9, 8, 7, 6, 9);
+    first(x, y, 9, 8, 7, 6, 4);
     int z = x + y;
 
 }
