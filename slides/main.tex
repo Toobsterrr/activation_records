@@ -6,6 +6,30 @@
 \usepackage{pdfpages}
 \usepackage{hyperref}
 
+%TikZ settings
+\usepackage{tikz}
+\usetikzlibrary{shapes.symbols,matrix, positioning, calc}
+\tikzset{
+	memory/.style={
+		matrix of nodes, name=M,
+		every node/.append style={
+			font=\tt, outer xsep=.4ex,
+			anchor=base},
+		column 2/.append style={
+			every node/.append style=
+			{draw,fill=white,
+				minimum width=#1,
+				minimum height=1.5em}
+		},
+		row sep=-.4pt,
+	},
+	memory/.default=1.6cm,
+	break above/.style={shape=tape, tape bend top=in and out, tape bend bottom=none},
+	break below/.style={shape=tape, tape bend top=none, tape bend bottom=in and out},
+	!!/.style={fill=green!20},
+	pointer/.style = {font=\tt, anchor=base, inner sep=2pt},
+}
+
 %Information to be included in the title page:
 \title{Activation Records (AR)}
 \author{Tobias Lamote \& Tim Robensyn}
@@ -166,6 +190,47 @@ Waarom geven we parameters zo veel mogelijk door via registers?
         \item Display
         \item Lambda lifting
     \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Static links}
+	\begin{columns}
+		\begin{column}{.3\textwidth}
+			\begin{verbatim}
+				f () {
+				    a = 1;
+				    g () {
+				        a += 1;
+				    }
+				    h () {
+				        g();
+				    }
+				    h();
+				    return a;
+				}
+			\end{verbatim}
+		\end{column}
+		\begin{column}{.7\textwidth}
+			\begin{tikzpicture}
+				\matrix [memory=3cm, ampersand replacement=\&]{
+					\& |[break above]|	\ldots	\\
+					f frame	\& |(f)|			a 		\\
+					\& |(dots)|					\ldots 	\\
+					\& |(fstat)|		static link	\\
+					\& |(fdyn)|			dynamic link \\
+					h frame \& |(h)|			\ldots 	\\
+					\& |(hstat)|		static link	\\
+					\& |(hdyn)|			dynamic link \\
+					g frame \& |(g)|			\ldots 	\\
+					\& |(gstat)|		static link	\\
+					\& |(gdyn)|			dynamic link \\
+				};
+				\draw[->] (gdyn.west) .. controls ++(-3,0) and ++(-3,1) .. (h.north west);
+				\draw[->] (gstat.east) to[out=0,in=0] (f.north east);
+				\draw[->] (hdyn.west) .. controls ++(-3,0) and ++(-3,1) .. (f.north west);
+				\draw[->] (hstat.east) to[out=0,in=0] (f.north east);
+			\end{tikzpicture}
+		\end{column}
+	\end{columns}
 \end{frame}
 
 % Voorbeeld uit het boek
