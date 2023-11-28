@@ -184,24 +184,34 @@ Waarom geven we parameters zo veel mogelijk door via registers?
     \includegraphics[width=\textwidth]{nested_functions.png}
 \end{frame}
 
-\begin{frame}{Nested functions: solutions}
-    \begin{itemize}
-        \item Static links
-        \item Display
-        \item Lambda lifting
-    \end{itemize}
+\begin{frame}{Nested functions}
+	\begin{alertblock}{Probleem}
+		Hoe raakt een \emph{inner} function aan de lokale variabelen van zijn \emph{outer} function?
+	\end{alertblock}
+	\begin{block}{Free variables}
+		De variabelen van outer functions gebruikt in een lokale functie worden \emph{free} (vrij) genoemd omdat ze niet \emph{bound} (gebonden) zijn door de definitie van de lokale functie.
+	\end{block}
 \end{frame}
 
-\begin{frame}[fragile]{Static links}
+\begin{frame}{Nested functions: static links}
+	Voeg een \emph{static link} toe in elk frame. De link verwijst naar het frame van de outer function. Vrije variabelen kunnen nu via pointer dereferencing bereikt worden vanuit inner functions.
+%    \begin{itemize}
+%        \item Static links
+%        \item Display
+%        \item Lambda lifting
+%    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Static links: voorbeeld}
 	\begin{columns}
 		\begin{column}{.3\textwidth}
 			\begin{verbatim}
-				f () {
+				f() {
 				    a = 1;
-				    g () {
+				    g() {
 				        a += 1;
 				    }
-				    h () {
+				    h() {
 				        g();
 				    }
 				    h();
@@ -233,13 +243,81 @@ Waarom geven we parameters zo veel mogelijk door via registers?
 	\end{columns}
 \end{frame}
 
+\begin{frame}{Nested functions: displays}
+	\begin{itemize}
+		\item Nadeel static links: veel nesting leidt tot veel pointer dereferencing
+		\item Idee: gebruik globale datastructuur!
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Nested functions: lambda lifting}
+%%	Breng alle functies in de top-level/globale scope
+%%	Geef lokale variabelen expliciet door
+	\begin{block}{Idee:}
+		Vermijd het probleem door vrije variabelen weg te werken
+	\end{block}
+
+	\begin{enumerate}
+		\item Geef alle functies globaal unieke namen
+		\item Voor elke lokale functie:
+		\begin{enumerate}
+			\item Voeg alle gebruikte vrije variabelen toe als parameters zodat alle variabelen gebonden zijn
+			\item Verplaats de lokale functie naar de globale scope
+		\end{enumerate}
+	\end{enumerate}
+
+\end{frame}
+
+\begin{frame}[fragile]{Lambda lifting: voorbeeld}
+	\begin{columns}[t]
+		\begin{column}{.5\textwidth}
+			Before:
+			\begin{verbatim}
+				f() {
+				    a = 1;
+				    g() {
+				        a += 1;
+				    }
+				    h() {
+				        g();
+				    }
+				    h();
+				    return a;
+				}
+			\end{verbatim}
+		\end{column}
+		\begin{column}{.5\textwidth}
+			After:
+			\begin{verbatim}
+				g(a) {
+				    return a + 1;
+				}
+				h(a) {
+				    return g(a);
+				}
+				f() {
+				    a = 1;
+				    return h(a);
+				}
+			\end{verbatim}
+		\end{column}
+	\end{columns}
+\end{frame}
+
 % Voorbeeld uit het boek
 \begin{frame}{Wanneer is een stack niet genoeg?}
-	\begin{block}{}
+	\begin{block}{Voorwaarden}
 	    Nested functions \&\& Functions as return values
 	\end{block}
-	\begin{block}{Oplossing}
-	    Heap-allocation en garbage collection
+	$\rightarrow$ Als functies met vrije variabelen langer kunnen leven dan hun outer functions is er een probleem aangezien de vrije variabelen dan kunnen verdwijnen wanneer het frame van de outer function van de stack wordt 'gepopt'.
+\end{frame}
+
+\begin{frame}{Oplossing: closures}
+	\begin{block}{Closure}
+		Een closure bestaat uit de functie zelf \textbf{plus} een voorstelling van de lexicale omgeving (environment) van die functie op het moment dat die gecreëerd werd.
+	\end{block}
+	\begin{block}{Implementatie}
+		De stack is geen optie (zie vorige slide) dus moet er gebruik worden gemaakt van de heap. Dit kan met garbage collection om closures die niet meer gebruikt worden veilig te verwijderen.
 	\end{block}
 \end{frame}
 
@@ -270,7 +348,7 @@ Waarom geven we parameters zo veel mogelijk door via registers?
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Extra source}
+\begin{frame}{Extra sources}
 	\begin{itemize}
 	    \item Laatste hoofdstuk van deze slides: \href{https://web.cs.ucla.edu/~palsberg/course/cs132/lec.pdf}{https://web.cs.ucla.edu/~palsberg/course/cs132/lec.pdf}
 	    \item \emph{Implementation strategies for First-Class Continuations} van William D. Clinger (voor de geïnteresseerden)
