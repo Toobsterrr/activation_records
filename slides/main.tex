@@ -5,30 +5,8 @@
 \usepackage{graphicx}
 \usepackage{pdfpages}
 \usepackage{hyperref}
-
-%TikZ settings
-\usepackage{tikz}
-\usetikzlibrary{shapes.symbols,matrix, positioning, calc}
-\tikzset{
-	memory/.style={
-		matrix of nodes, name=M,
-		every node/.append style={
-			font=\tt, outer xsep=.4ex,
-			anchor=base},
-		column 2/.append style={
-			every node/.append style=
-			{draw,fill=white,
-				minimum width=#1,
-				minimum height=1.5em}
-		},
-		row sep=-.4pt,
-	},
-	memory/.default=1.6cm,
-	break above/.style={shape=tape, tape bend top=in and out, tape bend bottom=none},
-	break below/.style={shape=tape, tape bend top=none, tape bend bottom=in and out},
-	!!/.style={fill=green!20},
-	pointer/.style = {font=\tt, anchor=base, inner sep=2pt},
-}
+\usepackage{listings}
+\usepackage{minted}
 
 %Information to be included in the title page:
 \title{Activation Records (AR)}
@@ -37,21 +15,92 @@
 
 \begin{document}
 
+\setminted{fontsize=\small}
+
+\begin{VerbatimOut}{functions_calls_parameters.c}
+void second(int vals[]) {
+    vals[0] = 8;
+    vals[3] = 9;
+}
+
+void first(int x, int y, int z, int a, int b, int c, int s) {
+    int arr[] = {x,y,6,7};
+    second(arr);
+}
+
+void main() {
+
+
+    int x = 2;
+    int y = 3;
+    first(x, y, 9, 8, 7, 6, 4);
+    int z = x + y;
+
+}
+\end{VerbatimOut}
+\begin{VerbatimOut}{functions_calls_return.c}
+int* second() {
+    int* arr = malloc(3*sizeof(int));
+    arr[0] = 2;
+    arr[1] = 3;
+    arr[2] = 4;
+    return arr;
+}
+
+int first() {
+    int* arr = second();
+    return 1;
+}
+
+void main() {
+
+    int i = first();
+
+}
+\end{VerbatimOut}
+\begin{VerbatimOut}{buffer_overflow_function.c}
+#include <stdio.h>
+
+void forbidden_function()
+{
+    int bad[4] = {1, 2, 3, 4};
+}
+
+void okay_function()
+{
+    char string[5] = "baaa";
+    string[21] = 'I';
+    // string[21] = 'i';
+    string[22] = 'Q';
+}
+
+void main ()
+{
+    okay_function();
+}
+\end{VerbatimOut}
+
+
 % Verwelkom iedereen
 \frame{\titlepage}
 
+{
+\usebackgroundtemplate{
+    \vbox to \paperheight{\hbox to \paperwidth{\hfil\includegraphics[height=\paperheight]{tijger_2.jpeg}}}
+}
 \begin{frame}{Inhoudstafel}
-	\begin{itemize}
-	    \item Herhaling
-	    \item Parameter passing
-	    \item Tail call optimization
-	    \item Stack smashing
-	    \item Demo met \texttt{gdb}
-	    \item Nested functions
-	    \item Continuations
-	    \item Examenvragen
-	\end{itemize}
+\begin{itemize}
+    \item Herhaling
+    \item Parameter passing
+    \item Tail call optimization
+    \item Stack smashing
+    \item Demo met \texttt{gdb}
+    \item Nested functions
+    \item Continuations
+    \item Examenvragen
+\end{itemize}
 \end{frame}
+}
 
 % Korte herhaling: procedure (pre-call, prologue, epilogue, post-call)?
 % Situeer AR in de compiler:
@@ -75,28 +124,28 @@
 % Overloop puntjes
 % register allocator wordt later nog uitgelegd door Jacob
 \begin{frame}{Stack van het handboek}
-	\begin{columns}
-	    \begin{column}{.5\textwidth}
-	        \includegraphics[height=\textheight]{theoretical_stack.png}
-	    \end{column}
-	    \begin{column}{.5\textwidth}
-	        \begin{itemize}
-	            \item Geen echte \emph{stack}
-	            \item Geen \emph{echte} stack
-	            \item Register allocator (zie later met Jacob)
-	        \end{itemize}
-	    \end{column}
-	\end{columns}
+\begin{columns}
+    \begin{column}{.5\textwidth}
+        \includegraphics[height=\textheight]{theoretical_stack.png}
+    \end{column}
+    \begin{column}{.5\textwidth}
+        \begin{itemize}
+            \item Geen echte \emph{stack}
+            \item Geen \emph{echte} stack
+            \item Register allocator (zie later met Jacob)
+        \end{itemize}
+    \end{column}
+\end{columns}
 \end{frame}
 
 \includepdf[]{procedure_responsabilities_ucla.pdf}
 
 \begin{frame}{Nut van een frame pointer}
-	\begin{itemize}
-	    \item Frames van variabele lengte (dynamic link)
-	    \item Compiler kan vroeger aannames maken
-	    \item Programmeur kan functies volgen in assembly
-	\end{itemize}
+\begin{itemize}
+    \item Frames van variabele lengte (dynamic link)
+    \item Compiler kan vroeger aannames maken
+    \item Programmeur kan functies volgen in assembly
+\end{itemize}
 \end{frame}
 
 % Waarom niet alles op de stack?
@@ -105,65 +154,66 @@ Waarom geven we parameters zo veel mogelijk door via registers?
 \end{frame}
 
 \begin{frame}{Parameter passing}
-	Waarom geven we parameters zo veel mogelijk door via registers?
-	Snelheid!
+Waarom geven we parameters zo veel mogelijk door via registers?
+Snelheid!
     \begin{enumerate}
-        \item leaf procedures: $l = intern * (children-1) + 1$
-        \item interprocedural register allocation
-        \item dead variables
-        \item specific architectures (register windows)
+        \item leaf procedures moeten vaak niet naar de stack schrijven: $l = intern * (children-1) + 1$
+        \item interprocedural register allocation: vermijden van conflicten tussen functies
+        \item dead variables: onnodige variabelen mogen overschreven worden
+        \item specific architectures: (vb. register windows: elke functie andere registers)
     \end{enumerate}
 \end{frame}
 
 \begin{frame}{Calling conventions}
-	\begin{itemize}
-	    \item iedere taal/compiler kan kiezen
-	    \item samenwerken: standaard gebruiken
-	    \item stack data layout
-	    \item caller-save vs callee-save
-	    \item leaf functies gebruiken caller-save
-	\end{itemize}
+\begin{itemize}
+    \item iedere taal/compiler kan kiezen
+    \item samenwerken: standaard gebruiken
+    \item stack data layout
+    \item caller-save vs callee-save
+    \item leaf functies gebruiken caller-save
+\end{itemize}
 \end{frame}
 
 \begin{frame}{ABI}
-	\begin{itemize}
-	    \item compiler kan verschillende ABIs ondersteunen
-	    \item vb. rust
-	    \item \includegraphics[width=0.3\textwidth]{abis.png}
-	    \item windows 32 c: stdcall
-	    \item windows 64 c: C
-	\end{itemize}
+\begin{itemize}
+    \item compiler kan verschillende ABIs ondersteunen
+    \item vb. rust
+    \item \includegraphics[width=0.3\textwidth]{abis.png}
+    \item windows 32 c: stdcall
+    \item windows 64 c: C
+\end{itemize}
 \end{frame}
 
 \begin{frame}{Tail call optimization}
-	\begin{itemize}
-	    \item recursieve functies
-	    \item stack herbruiken
-	\end{itemize}
+\begin{itemize}
+    \item recursieve functies
+    \item stack herbruiken
+    \item laatste call moet de functie zelf zijn
+\end{itemize}
 \end{frame}
 
 \begin{frame}{Tail call optimization}
-	\begin{columns}
-		\begin{column}{.4\textwidth}
-		    \includegraphics[width=\textwidth]{not_tco.png}
-		\end{column}
-		\begin{column}{.5\textwidth}
-		    \includegraphics[width=\textwidth]{tco_2.png}
-		\end{column}
-	\end{columns}
+\begin{columns}
+\begin{column}{.4\textwidth}
+    \includegraphics[width=\textwidth]{not_tco.png}
+\end{column}
+\begin{column}{.5\textwidth}
+    \includegraphics[width=\textwidth]{tco_2.png}
+\end{column}
+\end{columns}
 \end{frame}
 
 % overwriting stack return address or local variables
 % defenses? (vanuit compiler):
 %   - guard values
 \begin{frame}{Stack Smashing}
-	\begin{block}{What can the compiler do?}
-		\begin{itemize}
-		    \item Add stack canaries (terminator, random, random XOR'ed)
-		    \item Add bounds checking
-		\end{itemize}
-	\end{block}
-	Meer in de les Development of Secure Software.
+\begin{block}{What can the compiler do?}
+\begin{itemize}
+    \item Add stack canaries (terminator, random, random XOR'ed)
+    \item Add bounds checking
+\end{itemize}
+\end{block}
+Meer in de les Development of Secure Software.
 \end{frame}
 
 \begin{frame}{Demo: spelen met \texttt{gdb}}
@@ -180,163 +230,56 @@ Waarom geven we parameters zo veel mogelijk door via registers?
     \end{itemize}
 \end{frame}
 
+\begin{frame}{functions with parameters}
+    \inputminted{c}{functions_calls_parameters.c}
+\end{frame}
+
+\begin{frame}{functions with return value}
+    \inputminted{c}{functions_calls_return.c}
+\end{frame}
+
+\begin{frame}{buffer overflow vulnerability}
+    \inputminted{c}{buffer_overflow_function.c}
+\end{frame}
+
 \begin{frame}{Nested functions}
     \includegraphics[width=\textwidth]{nested_functions.png}
 \end{frame}
 
-\begin{frame}{Nested functions}
-	\begin{alertblock}{Probleem}
-		Hoe raakt een \emph{inner} function aan de lokale variabelen van zijn \emph{outer} function?
-	\end{alertblock}
-	\begin{block}{Free variables}
-		De variabelen van outer functions gebruikt in een lokale functie worden \emph{free} (vrij) genoemd omdat ze niet \emph{bound} (gebonden) zijn door de definitie van de lokale functie.
-	\end{block}
-\end{frame}
-
-\begin{frame}{Nested functions: static links}
-	Voeg een \emph{static link} toe in elk frame. De link verwijst naar het frame van de outer function. Vrije variabelen kunnen nu via pointer dereferencing bereikt worden vanuit inner functions.
-%    \begin{itemize}
-%        \item Static links
-%        \item Display
-%        \item Lambda lifting
-%    \end{itemize}
-\end{frame}
-
-\begin{frame}[fragile]{Static links: voorbeeld}
-	\begin{columns}
-		\begin{column}{.3\textwidth}
-			\begin{verbatim}
-				f() {
-				    a = 1;
-				    g() {
-				        a += 1;
-				    }
-				    h() {
-				        g();
-				    }
-				    h();
-				    return a;
-				}
-			\end{verbatim}
-		\end{column}
-		\begin{column}{.7\textwidth}
-			\begin{tikzpicture}
-				\matrix [memory=3cm, ampersand replacement=\&]{
-					\& |[break above]|	\ldots	\\
-					f frame	\& |(f)|			a 		\\
-					\& |(dots)|					\ldots 	\\
-					\& |(fstat)|		static link	\\
-					\& |(fdyn)|			dynamic link \\
-					h frame \& |(h)|			\ldots 	\\
-					\& |(hstat)|		static link	\\
-					\& |(hdyn)|			dynamic link \\
-					g frame \& |(g)|			\ldots 	\\
-					\& |(gstat)|		static link	\\
-					\& |(gdyn)|			dynamic link \\
-				};
-				\draw[->] (gdyn.west) .. controls ++(-3,0) and ++(-3,1) .. (h.north west);
-				\draw[->] (gstat.east) to[out=0,in=0] (f.north east);
-				\draw[->] (hdyn.west) .. controls ++(-3,0) and ++(-3,1) .. (f.north west);
-				\draw[->] (hstat.east) to[out=0,in=0] (f.north east);
-			\end{tikzpicture}
-		\end{column}
-	\end{columns}
-\end{frame}
-
-\begin{frame}{Nested functions: displays}
-	\begin{itemize}
-		\item Nadeel static links: veel nesting leidt tot veel pointer dereferencing
-		\item Idee: gebruik globale datastructuur!
-	\end{itemize}
-\end{frame}
-
-\begin{frame}{Nested functions: lambda lifting}
-%%	Breng alle functies in de top-level/globale scope
-%%	Geef lokale variabelen expliciet door
-	\begin{block}{Idee:}
-		Vermijd het probleem door vrije variabelen weg te werken
-	\end{block}
-
-	\begin{enumerate}
-		\item Geef alle functies globaal unieke namen
-		\item Voor elke lokale functie:
-		\begin{enumerate}
-			\item Voeg alle gebruikte vrije variabelen toe als parameters zodat alle variabelen gebonden zijn
-			\item Verplaats de lokale functie naar de globale scope
-		\end{enumerate}
-	\end{enumerate}
-
-\end{frame}
-
-\begin{frame}[fragile]{Lambda lifting: voorbeeld}
-	\begin{columns}[t]
-		\begin{column}{.5\textwidth}
-			Before:
-			\begin{verbatim}
-				f() {
-				    a = 1;
-				    g() {
-				        a += 1;
-				    }
-				    h() {
-				        g();
-				    }
-				    h();
-				    return a;
-				}
-			\end{verbatim}
-		\end{column}
-		\begin{column}{.5\textwidth}
-			After:
-			\begin{verbatim}
-				g(a) {
-				    return a + 1;
-				}
-				h(a) {
-				    return g(a);
-				}
-				f() {
-				    a = 1;
-				    return h(a);
-				}
-			\end{verbatim}
-		\end{column}
-	\end{columns}
+\begin{frame}{Nested functions: solutions}
+    \begin{itemize}
+        \item Static links
+        \item Display
+        \item Lambda lifting
+    \end{itemize}
 \end{frame}
 
 % Voorbeeld uit het boek
 \begin{frame}{Wanneer is een stack niet genoeg?}
-	\begin{block}{Voorwaarden}
-	    Nested functions \&\& Functions as return values
-	\end{block}
-	$\rightarrow$ Als functies met vrije variabelen langer kunnen leven dan hun outer functions is er een probleem aangezien de vrije variabelen dan kunnen verdwijnen wanneer het frame van de outer function van de stack wordt 'gepopt'.
-\end{frame}
-
-\begin{frame}{Oplossing: closures}
-	\begin{block}{Closure}
-		Een closure bestaat uit de functie zelf \textbf{plus} een voorstelling van de lexicale omgeving (environment) van die functie op het moment dat die gecreëerd werd.
-	\end{block}
-	\begin{block}{Implementatie}
-		De stack is geen optie (zie vorige slide) dus moet er gebruik worden gemaakt van de heap. Dit kan met garbage collection om closures die niet meer gebruikt worden veilig te verwijderen.
-	\end{block}
+\begin{block}{}
+    Nested functions \&\& Functions as return values
+\end{block}
+\begin{block}{Oplossing}
+    Heap-allocation en garbage collection
+\end{block}
 \end{frame}
 
 \begin{frame}{Continuations}
-	\begin{block}{Definitie}
-	    A continuation is the abstract concept represented by the control stack, or dynamic chain of activation records, in a typical programming-language implementation.
-	\end{block}
-	\begin{itemize}
-	    \item Zoals closures environments opslaan, zo slaan continuations de huidige controlecontext op (de stack)
-	    \item Gelijkenissen met multithreading
-	    \item Kan gebruikt worden om try-catch structuren te maken
-	\end{itemize}
+\begin{block}{Definitie}
+    A continuation is the abstract concept represented by the control stack, or dynamic chain of activation records, in a typical programming-language implementation.
+\end{block}
+\begin{itemize}
+    \item Zoals closures environments opslaan, zo slaan continuations de huidige controlecontext op (de stack)
+    \item Gelijkenissen met multithreading
+    \item Kan gebruikt worden om try-catch structuren te maken
+\end{itemize}
 \end{frame}
 
 \begin{frame}{Continuations: implementatie}
-	\begin{itemize}
-	    \item The garbage-collection strategy
-	    \item The spaghetti stack
-	\end{itemize}
+\begin{itemize}
+    \item The garbage-collection strategy
+    \item The spaghetti stack
+\end{itemize}
 \end{frame}
 
 \begin{frame}{Examenvragen}
@@ -348,11 +291,11 @@ Waarom geven we parameters zo veel mogelijk door via registers?
     \end{itemize}
 \end{frame}
 
-\begin{frame}{Extra sources}
-	\begin{itemize}
-	    \item Laatste hoofdstuk van deze slides: \href{https://web.cs.ucla.edu/~palsberg/course/cs132/lec.pdf}{https://web.cs.ucla.edu/~palsberg/course/cs132/lec.pdf}
-	    \item \emph{Implementation strategies for First-Class Continuations} van William D. Clinger (voor de geïnteresseerden)
-	\end{itemize}
+\begin{frame}{Extra source}
+\begin{itemize}
+    \item Laatste hoofdstuk van deze slides: \href{https://web.cs.ucla.edu/~palsberg/course/cs132/lec.pdf}{https://web.cs.ucla.edu/~palsberg/course/cs132/lec.pdf}
+    \item \emph{Implementation strategies for First-Class Continuations} van William D. Clinger (voor de geïnteresseerden)
+\end{itemize}
 \end{frame}
 
 \end{document}
